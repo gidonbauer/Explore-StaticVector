@@ -1,7 +1,6 @@
 #ifndef STATIC_VECTOR_HPP_
 #define STATIC_VECTOR_HPP_
 
-#include <array>
 #include <cassert>
 #include <cstddef>
 #include <initializer_list>
@@ -17,20 +16,20 @@ struct UninitializedArray {
                                             std::is_trivially_destructible_v<Element>;
 
   using Storage_t = std::conditional_t<is_trivial_enough,
-                                       std::array<Element, CAPACITY>,
-                                       std::byte[CAPACITY * sizeof(Element)]>;
+                                       Element[CAPACITY],                       // NOLINT
+                                       std::byte[CAPACITY * sizeof(Element)]>;  // NOLINT
   alignas(Element) Storage_t m_data;
 
   constexpr auto data() noexcept -> Element* {
     if constexpr (is_trivial_enough) {
-      return m_data.data();
+      return m_data;
     } else {
       return reinterpret_cast<Element*>(m_data);
     }
   }
   constexpr auto data() const noexcept -> const Element* {
     if constexpr (is_trivial_enough) {
-      return m_data.data();
+      return m_data;
     } else {
       return reinterpret_cast<const Element*>(m_data);
     }
