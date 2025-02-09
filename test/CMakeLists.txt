@@ -1,4 +1,5 @@
 set(executables
+        test_initialize
         test_static_vector
 )
 

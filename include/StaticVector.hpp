@@ -45,17 +45,28 @@ class StaticVector {
   size_t m_size = 0UZ;
 
  public:
+  using value_type      = Element;
+  using size_type       = size_t;
+  using difference_type = long int;
+  using reference       = value_type&;
+  using const_reference = const value_type&;
+  using pointer         = value_type*;
+  using const_pointer   = const value_type*;
+  using iterator        = pointer;
+  using const_iterator  = const_pointer;
+  // using reverse_iterator       = void;
+  // using const_reverse_iterator = void;
+
   static constexpr auto is_trivial_enough =
       UninitializedArray<Element, CAPACITY>::is_trivial_enough;
 
   constexpr StaticVector() noexcept = default;
+  constexpr StaticVector(size_t size, Element init = Element{}) noexcept {
+    for (size_t i = 0; i < size; ++i) {
+      push_back(init);
+    }
+  }
   constexpr StaticVector(std::initializer_list<Element> values) noexcept {
-    // assert(values.size() <= CAPACITY && "Size is greater than capacity.");
-    // m_size = values.size();
-    // for (size_t i = 0; i < values.size(); ++i) {
-    //   std::construct_at(reinterpret_cast<Element*>(m_data + offset(i)),
-    //                     std::move(*std::next(values.begin(), static_cast<long>(i))));
-    // }
     for (auto& v : values) {
       push_back(v);
     }
@@ -84,15 +95,28 @@ class StaticVector {
     m_size += 1;
   }
 
-  [[nodiscard]] constexpr auto operator[](size_t idx) noexcept -> Element& {
+  [[nodiscard]] constexpr auto operator[](size_t idx) noexcept -> reference {
     return *(m_data.data() + idx);
   }
-  [[nodiscard]] constexpr auto operator[](size_t idx) const noexcept -> const Element& {
+  [[nodiscard]] constexpr auto operator[](size_t idx) const noexcept -> const_reference {
     return *(m_data.data() + idx);
   }
 
-  [[nodiscard]] constexpr auto size() const noexcept -> size_t { return m_size; }
-  [[nodiscard]] constexpr auto capacity() const noexcept -> size_t { return CAPACITY; }
+  // -----------------------------------------------------------------------------------------------
+  [[nodiscard]] constexpr auto size() const noexcept -> size_type { return m_size; }
+  [[nodiscard]] constexpr auto capacity() const noexcept -> size_type { return CAPACITY; }
+
+  // -----------------------------------------------------------------------------------------------
+  [[nodiscard]] constexpr auto begin() noexcept -> iterator { return m_data.data(); }
+  [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return m_data.data(); }
+  [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return m_data.data(); }
+  [[nodiscard]] constexpr auto end() noexcept -> iterator { return m_data.data() + m_size; }
+  [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
+    return m_data.data() + m_size;
+  }
+  [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
+    return m_data.data() + m_size;
+  }
 };
 
 #endif  // STATIC_VECTOR_HPP_
