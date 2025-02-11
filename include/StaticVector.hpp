@@ -12,23 +12,24 @@
 // -------------------------------------------------------------------------------------------------
 template <typename Element, size_t CAPACITY>
 struct UninitializedArray {
-  static constexpr bool is_trivial_enough = std::is_trivially_default_constructible_v<Element> &&
-                                            std::is_trivially_destructible_v<Element>;
+  static constexpr bool constructor_and_destructor_are_cheap =
+      std::is_trivially_default_constructible_v<Element> &&
+      std::is_trivially_destructible_v<Element>;
 
-  using Storage_t = std::conditional_t<is_trivial_enough,
+  using Storage_t = std::conditional_t<constructor_and_destructor_are_cheap,
                                        Element[CAPACITY],                       // NOLINT
                                        std::byte[CAPACITY * sizeof(Element)]>;  // NOLINT
   alignas(Element) Storage_t m_data;
 
   constexpr auto data() noexcept -> Element* {
-    if constexpr (is_trivial_enough) {
+    if constexpr (constructor_and_destructor_are_cheap) {
       return m_data;
     } else {
       return reinterpret_cast<Element*>(m_data);
     }
   }
   constexpr auto data() const noexcept -> const Element* {
-    if constexpr (is_trivial_enough) {
+    if constexpr (constructor_and_destructor_are_cheap) {
       return m_data;
     } else {
       return reinterpret_cast<const Element*>(m_data);
@@ -47,7 +48,7 @@ class StaticVector {
  public:
   using value_type      = Element;
   using size_type       = size_t;
-  using difference_type = long int;
+  using difference_type = ssize_t;
   using reference       = value_type&;
   using const_reference = const value_type&;
   using pointer         = value_type*;
@@ -57,8 +58,8 @@ class StaticVector {
   // using reverse_iterator       = void;
   // using const_reverse_iterator = void;
 
-  static constexpr auto is_trivial_enough =
-      UninitializedArray<Element, CAPACITY>::is_trivial_enough;
+  static constexpr auto constructor_and_destructor_are_cheap =
+      UninitializedArray<Element, CAPACITY>::constructor_and_destructor_are_cheap;
 
   constexpr StaticVector() noexcept = default;
   constexpr StaticVector(size_t size, Element init = Element{}) noexcept {
@@ -78,6 +79,10 @@ class StaticVector {
   constexpr auto operator=(const StaticVector& other) noexcept -> StaticVector& = delete;
   constexpr auto operator=(StaticVector&& other) noexcept -> StaticVector&      = delete;
 
+  constexpr ~StaticVector() noexcept
+  requires(std::is_trivially_destructible_v<Element>)
+  = default;
+
   constexpr ~StaticVector() noexcept {
     for (size_t i = 0; i < m_size; ++i) {
       std::destroy_at(m_data.data() + i);
@@ -93,6 +98,14 @@ class StaticVector {
     assert(m_size < CAPACITY && "Size may not exceed capacity.");
     std::construct_at(m_data.data() + m_size, std::move(e));
     m_size += 1;
+  }
+
+  constexpr auto pop_back() noexcept -> value_type {
+    assert(m_size > 0 && "Vector cannot be empty.");
+    m_size -= 1;
+    auto tmp = std::move(operator[](m_size));
+    std::destroy_at(m_data.data() + m_size);
+    return tmp;
   }
 
   [[nodiscard]] constexpr auto operator[](size_t idx) noexcept -> reference {

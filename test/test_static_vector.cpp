@@ -6,7 +6,7 @@
 
 TEST(TestSV, VectorOfInt) {
   {
-    static_assert(StaticVector<int, 8UZ>::is_trivial_enough);
+    static_assert(StaticVector<int, 8UZ>::constructor_and_destructor_are_cheap);
     StaticVector<int, 8UZ> sv;
 
     sv.push_back(4);
