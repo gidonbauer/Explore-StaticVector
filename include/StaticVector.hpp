@@ -21,14 +21,14 @@ struct UninitializedArray {
                                        std::byte[CAPACITY * sizeof(Element)]>;  // NOLINT
   alignas(Element) Storage_t m_data;
 
-  constexpr auto data() noexcept -> Element* {
+  [[nodiscard]] constexpr auto data() noexcept -> Element* {
     if constexpr (constructor_and_destructor_are_cheap) {
       return m_data;
     } else {
       return reinterpret_cast<Element*>(m_data);
     }
   }
-  constexpr auto data() const noexcept -> const Element* {
+  [[nodiscard]] constexpr auto data() const noexcept -> const Element* {
     if constexpr (constructor_and_destructor_are_cheap) {
       return m_data;
     } else {
@@ -62,7 +62,7 @@ class StaticVector {
       UninitializedArray<Element, CAPACITY>::constructor_and_destructor_are_cheap;
 
   constexpr StaticVector() noexcept = default;
-  constexpr StaticVector(size_t size, Element init = Element{}) noexcept {
+  constexpr StaticVector(size_t size, const Element& init = Element{}) noexcept {
     for (size_t i = 0; i < size; ++i) {
       push_back(init);
     }
@@ -73,17 +73,51 @@ class StaticVector {
     }
   }
 
-  constexpr StaticVector(const StaticVector& other) noexcept = delete;
-  constexpr StaticVector(StaticVector&& other) noexcept      = delete;
+  // - Copy constructor ----------------------------------------------------------------------------
+  constexpr StaticVector(const StaticVector& other) noexcept {
+    for (const auto& e : other) {
+      push_back(e);
+    }
+  }
+  template <typename OtherElement, size_t OTHER_CAPACITY>
+  constexpr StaticVector(const StaticVector<OtherElement, OTHER_CAPACITY>& other) noexcept {
+    if constexpr (OTHER_CAPACITY > CAPACITY) {
+      assert(other.size() <= CAPACITY &&
+             "Size of vector must be less than or equal to the capacity.");
+    }
 
+    for (const auto& e : other) {
+      push_back(Element{e});
+    }
+  }
+
+  // - Move constructor ----------------------------------------------------------------------------
+  constexpr StaticVector(StaticVector&& other) noexcept {
+    for (auto& e : other) {
+      push_back(std::move(e));
+    }
+  }
+  template <typename OtherElement, size_t OTHER_CAPACITY>
+  constexpr StaticVector(StaticVector<OtherElement, OTHER_CAPACITY>&& other) noexcept {
+    if constexpr (OTHER_CAPACITY > CAPACITY) {
+      assert(other.size() <= CAPACITY &&
+             "Size of vector must be less than or equal to the capacity.");
+    }
+
+    for (auto& e : other) {
+      push_back(Element{std::move(e)});
+    }
+  }
+
+  // - Copy assignment -----------------------------------------------------------------------------
   constexpr auto operator=(const StaticVector& other) noexcept -> StaticVector& = delete;
-  constexpr auto operator=(StaticVector&& other) noexcept -> StaticVector&      = delete;
+  // - Move assignment -----------------------------------------------------------------------------
+  constexpr auto operator=(StaticVector&& other) noexcept -> StaticVector& = delete;
 
+  constexpr ~StaticVector() noexcept = default;
   constexpr ~StaticVector() noexcept
-  requires(std::is_trivially_destructible_v<Element>)
-  = default;
-
-  constexpr ~StaticVector() noexcept {
+  requires(!std::is_trivially_destructible_v<Element>)
+  {
     for (size_t i = 0; i < m_size; ++i) {
       std::destroy_at(m_data.data() + i);
     }

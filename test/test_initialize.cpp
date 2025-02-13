@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "StaticVector.hpp"
 
 // -------------------------------------------------------------------------------------------------
@@ -88,4 +90,140 @@ TEST(Initialize, InitializerList) {
       EXPECT_FLOAT_EQ(static_cast<float>(2 * i + 2), vec[i][1]);
     }
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+TEST(Initialize, CopyConstructor) {
+  const auto p1 = std::make_shared<int>(1);
+  const auto p2 = std::make_shared<int>(2);
+  const auto p3 = std::make_shared<int>(3);
+  const auto p4 = std::make_shared<int>(4);
+
+  StaticVector<std::shared_ptr<int>, 8UZ> v1{p1, p2, p3, p4};
+  EXPECT_EQ(p1.use_count(), 2UZ);
+  EXPECT_EQ(p2.use_count(), 2UZ);
+  EXPECT_EQ(p3.use_count(), 2UZ);
+  EXPECT_EQ(p4.use_count(), 2UZ);
+
+  // Copy to vector with same capacity
+  {
+    const StaticVector<std::shared_ptr<int>, 8UZ> v2 = v1;
+    EXPECT_EQ(p1.use_count(), 3UZ);
+    EXPECT_EQ(p2.use_count(), 3UZ);
+    EXPECT_EQ(p3.use_count(), 3UZ);
+    EXPECT_EQ(p4.use_count(), 3UZ);
+
+    for (size_t i = 0; i < v2.size(); ++i) {
+      EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+    }
+  }
+  EXPECT_EQ(p1.use_count(), 2UZ);
+  EXPECT_EQ(p2.use_count(), 2UZ);
+  EXPECT_EQ(p3.use_count(), 2UZ);
+  EXPECT_EQ(p4.use_count(), 2UZ);
+
+  // Copy to vector with more capacity
+  {
+    const StaticVector<std::shared_ptr<int>, 16UZ> v2 = v1;
+    EXPECT_EQ(p1.use_count(), 3UZ);
+    EXPECT_EQ(p2.use_count(), 3UZ);
+    EXPECT_EQ(p3.use_count(), 3UZ);
+    EXPECT_EQ(p4.use_count(), 3UZ);
+
+    for (size_t i = 0; i < v2.size(); ++i) {
+      EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+    }
+  }
+  EXPECT_EQ(p1.use_count(), 2UZ);
+  EXPECT_EQ(p2.use_count(), 2UZ);
+  EXPECT_EQ(p3.use_count(), 2UZ);
+  EXPECT_EQ(p4.use_count(), 2UZ);
+
+  // Copy to vector with less capacity
+  {
+    const StaticVector<std::shared_ptr<int>, 4UZ> v2 = v1;
+    EXPECT_EQ(p1.use_count(), 3UZ);
+    EXPECT_EQ(p2.use_count(), 3UZ);
+    EXPECT_EQ(p3.use_count(), 3UZ);
+    EXPECT_EQ(p4.use_count(), 3UZ);
+
+    for (size_t i = 0; i < v2.size(); ++i) {
+      EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+    }
+  }
+  EXPECT_EQ(p1.use_count(), 2UZ);
+  EXPECT_EQ(p2.use_count(), 2UZ);
+  EXPECT_EQ(p3.use_count(), 2UZ);
+  EXPECT_EQ(p4.use_count(), 2UZ);
+}
+
+// -------------------------------------------------------------------------------------------------
+TEST(Initialize, MoveConstructor) {
+  const auto p1 = std::make_shared<int>(1);
+  const auto p2 = std::make_shared<int>(2);
+  const auto p3 = std::make_shared<int>(3);
+  const auto p4 = std::make_shared<int>(4);
+
+  // Move to vector with same capacity
+  {
+    StaticVector<std::shared_ptr<int>, 8UZ> v1{p1, p2, p3, p4};
+    EXPECT_EQ(p1.use_count(), 2UZ);
+    EXPECT_EQ(p2.use_count(), 2UZ);
+    EXPECT_EQ(p3.use_count(), 2UZ);
+    EXPECT_EQ(p4.use_count(), 2UZ);
+
+    const StaticVector<std::shared_ptr<int>, 8UZ> v2 = std::move(v1);
+    EXPECT_EQ(p1.use_count(), 2UZ);
+    EXPECT_EQ(p2.use_count(), 2UZ);
+    EXPECT_EQ(p3.use_count(), 2UZ);
+    EXPECT_EQ(p4.use_count(), 2UZ);
+
+    for (size_t i = 0; i < v2.size(); ++i) {
+      EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+    }
+  }
+  EXPECT_EQ(p1.use_count(), 1UZ);
+  EXPECT_EQ(p2.use_count(), 1UZ);
+  EXPECT_EQ(p3.use_count(), 1UZ);
+  EXPECT_EQ(p4.use_count(), 1UZ);
+
+  // Copy to vector with more capacity
+  {
+    StaticVector<std::shared_ptr<int>, 8UZ> v1{p1, p2, p3, p4};
+    EXPECT_EQ(p1.use_count(), 2UZ);
+    EXPECT_EQ(p2.use_count(), 2UZ);
+    EXPECT_EQ(p3.use_count(), 2UZ);
+    EXPECT_EQ(p4.use_count(), 2UZ);
+
+    const StaticVector<std::shared_ptr<int>, 16UZ> v2 = std::move(v1);
+    EXPECT_EQ(p1.use_count(), 2UZ);
+    EXPECT_EQ(p2.use_count(), 2UZ);
+    EXPECT_EQ(p3.use_count(), 2UZ);
+    EXPECT_EQ(p4.use_count(), 2UZ);
+
+    for (size_t i = 0; i < v2.size(); ++i) {
+      EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+    }
+  }
+  EXPECT_EQ(p1.use_count(), 1UZ);
+  EXPECT_EQ(p2.use_count(), 1UZ);
+  EXPECT_EQ(p3.use_count(), 1UZ);
+  EXPECT_EQ(p4.use_count(), 1UZ);
+
+  // // Copy to vector with less capacity
+  // {
+  //   const StaticVector<std::shared_ptr<int>, 4UZ> v2 = v1;
+  //   EXPECT_EQ(p1.use_count(), 3UZ);
+  //   EXPECT_EQ(p2.use_count(), 3UZ);
+  //   EXPECT_EQ(p3.use_count(), 3UZ);
+  //   EXPECT_EQ(p4.use_count(), 3UZ);
+
+  //   for (size_t i = 0; i < v2.size(); ++i) {
+  //     EXPECT_EQ(*v2[i], static_cast<int>(i + 1));
+  //   }
+  // }
+  // EXPECT_EQ(p1.use_count(), 2UZ);
+  // EXPECT_EQ(p2.use_count(), 2UZ);
+  // EXPECT_EQ(p3.use_count(), 2UZ);
+  // EXPECT_EQ(p4.use_count(), 2UZ);
 }
