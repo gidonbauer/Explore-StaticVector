@@ -7,59 +7,30 @@
 #include <memory>
 #include <type_traits>
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-
-// -------------------------------------------------------------------------------------------------
-template <typename Element, size_t CAPACITY>
-struct UninitializedArray {
-  static constexpr bool constructor_and_destructor_are_cheap =
-      std::is_trivially_default_constructible_v<Element> &&
-      std::is_trivially_destructible_v<Element>;
-
-  using Storage_t = std::conditional_t<constructor_and_destructor_are_cheap,
-                                       Element[CAPACITY],                       // NOLINT
-                                       std::byte[CAPACITY * sizeof(Element)]>;  // NOLINT
-  alignas(Element) Storage_t m_data;
-
-  [[nodiscard]] constexpr auto data() noexcept -> Element* {
-    if constexpr (constructor_and_destructor_are_cheap) {
-      return m_data;
-    } else {
-      return reinterpret_cast<Element*>(m_data);
-    }
-  }
-  [[nodiscard]] constexpr auto data() const noexcept -> const Element* {
-    if constexpr (constructor_and_destructor_are_cheap) {
-      return m_data;
-    } else {
-      return reinterpret_cast<const Element*>(m_data);
-    }
-  }
-};
-
-// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+#include "ReverseIterator.hpp"
+#include "UninitializedArray.hpp"
 
 // -------------------------------------------------------------------------------------------------
 template <typename Element, size_t CAPACITY>
 class StaticVector {
-  UninitializedArray<Element, CAPACITY> m_data;
+  detail::UninitializedArray<Element, CAPACITY> m_data;
   size_t m_size = 0UZ;
 
  public:
-  using value_type      = Element;
-  using size_type       = size_t;
-  using difference_type = ssize_t;
-  using reference       = value_type&;
-  using const_reference = const value_type&;
-  using pointer         = value_type*;
-  using const_pointer   = const value_type*;
-  using iterator        = pointer;
-  using const_iterator  = const_pointer;
-  // using reverse_iterator       = void;
+  using value_type       = Element;
+  using size_type        = size_t;
+  using difference_type  = ssize_t;
+  using reference        = value_type&;
+  using const_reference  = const value_type&;
+  using pointer          = value_type*;
+  using const_pointer    = const value_type*;
+  using iterator         = pointer;
+  using const_iterator   = const_pointer;
+  using reverse_iterator = detail::ReverseIterator<Element>;
   // using const_reverse_iterator = void;
 
   static constexpr auto constructor_and_destructor_are_cheap =
-      UninitializedArray<Element, CAPACITY>::constructor_and_destructor_are_cheap;
+      detail::UninitializedArray<Element, CAPACITY>::constructor_and_destructor_are_cheap;
 
   constexpr StaticVector() noexcept = default;
   constexpr StaticVector(size_t size, const Element& init = Element{}) noexcept {
@@ -79,6 +50,7 @@ class StaticVector {
       push_back(e);
     }
   }
+
   template <typename OtherElement, size_t OTHER_CAPACITY>
   constexpr StaticVector(const StaticVector<OtherElement, OTHER_CAPACITY>& other) noexcept {
     if constexpr (OTHER_CAPACITY > CAPACITY) {
@@ -97,6 +69,7 @@ class StaticVector {
       push_back(std::move(e));
     }
   }
+
   template <typename OtherElement, size_t OTHER_CAPACITY>
   constexpr StaticVector(StaticVector<OtherElement, OTHER_CAPACITY>&& other) noexcept {
     if constexpr (OTHER_CAPACITY > CAPACITY) {
@@ -110,10 +83,58 @@ class StaticVector {
   }
 
   // - Copy assignment -----------------------------------------------------------------------------
-  constexpr auto operator=(const StaticVector& other) noexcept -> StaticVector& = delete;
-  // - Move assignment -----------------------------------------------------------------------------
-  constexpr auto operator=(StaticVector&& other) noexcept -> StaticVector& = delete;
+  constexpr auto operator=(const StaticVector& other) noexcept -> StaticVector& {
+    if (this != &other) {
+      clear();
+      for (const auto& e : other) {
+        push_back(e);
+      }
+    }
+    return *this;
+  }
 
+  template <typename OtherElement, size_t OTHER_CAPACITY>
+  constexpr auto operator=(const StaticVector<OtherElement, OTHER_CAPACITY>& other) noexcept
+      -> StaticVector& {
+    if constexpr (OTHER_CAPACITY > CAPACITY) {
+      assert(other.size() <= CAPACITY &&
+             "Size of vector must be less than or equal to the capacity.");
+    }
+
+    clear();
+    for (const auto& e : other) {
+      push_back(Element{e});
+    }
+    return *this;
+  }
+
+  // - Move assignment -----------------------------------------------------------------------------
+  constexpr auto operator=(StaticVector&& other) noexcept -> StaticVector& {
+    if (this != &other) {
+      clear();
+      for (auto& e : other) {
+        push_back(std::move(e));
+      }
+    }
+    return *this;
+  }
+
+  template <typename OtherElement, size_t OTHER_CAPACITY>
+  constexpr auto operator=(StaticVector<OtherElement, OTHER_CAPACITY>&& other) noexcept
+      -> StaticVector& {
+    if constexpr (OTHER_CAPACITY > CAPACITY) {
+      assert(other.size() <= CAPACITY &&
+             "Size of vector must be less than or equal to the capacity.");
+    }
+
+    clear();
+    for (auto& e : other) {
+      push_back(std::move(e));
+    }
+    return *this;
+  }
+
+  // -------------------------------------------------------------------------------------------------
   constexpr ~StaticVector() noexcept = default;
   constexpr ~StaticVector() noexcept
   requires(!std::is_trivially_destructible_v<Element>)
@@ -123,6 +144,7 @@ class StaticVector {
     }
   }
 
+  // -------------------------------------------------------------------------------------------------
   constexpr void push_back(const Element& e) noexcept {
     assert(m_size < CAPACITY && "Size may not exceed capacity.");
     std::construct_at(m_data.data() + m_size, e);
@@ -163,6 +185,50 @@ class StaticVector {
   }
   [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
     return m_data.data() + m_size;
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator {
+    return reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+  }
+  // [[nodiscard]] constexpr auto rbegin() const noexcept -> const_iterator { return m_data.data();
+  // }
+  // [[nodiscard]] constexpr auto crbegin() const noexcept -> const_iterator { return m_data.data();
+  // }
+  [[nodiscard]] constexpr auto rend() noexcept -> reverse_iterator {
+    return reverse_iterator{m_data.data() - 1};
+  }
+  // [[nodiscard]] constexpr auto rend() const noexcept -> const_iterator {
+  //   return m_data.data() + m_size;
+  // }
+  // [[nodiscard]] constexpr auto crend() const noexcept -> const_iterator {
+  //   return m_data.data() + m_size;
+  // }
+
+  // ------------------------------------------------------------------------------------------------
+  [[nodiscard]] constexpr auto front() noexcept -> reference {
+    assert(m_size > 0UZ && "Vector must contain at least one element.");
+    return operator[](0UZ);
+  }
+  [[nodiscard]] constexpr auto front() const noexcept -> const_reference {
+    assert(m_size > 0UZ && "Vector must contain at least one element.");
+    return operator[](0UZ);
+  }
+  [[nodiscard]] constexpr auto back() noexcept -> reference {
+    assert(m_size > 0UZ && "Vector must contain at least one element.");
+    return operator[](m_size - 1UZ);
+  }
+  [[nodiscard]] constexpr auto back() const noexcept -> const_reference {
+    assert(m_size > 0UZ && "Vector must contain at least one element.");
+    return operator[](m_size - 1UZ);
+  }
+
+  // -------------------------------------------------------------------------------------------------
+  constexpr void clear() noexcept {
+    for (size_t i = 0; i < m_size; ++i) {
+      std::destroy_at(m_data.data() + i);
+    }
+    m_size = 0UZ;
   }
 };
 

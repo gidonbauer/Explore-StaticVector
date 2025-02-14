@@ -1,6 +1,7 @@
 set(executables
         test_initialize
         test_destruct
+        test_iterator
         test_static_vector
 )
 
