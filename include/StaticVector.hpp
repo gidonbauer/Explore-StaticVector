@@ -17,17 +17,17 @@ class StaticVector {
   size_t m_size = 0UZ;
 
  public:
-  using value_type       = Element;
-  using size_type        = size_t;
-  using difference_type  = ssize_t;
-  using reference        = value_type&;
-  using const_reference  = const value_type&;
-  using pointer          = value_type*;
-  using const_pointer    = const value_type*;
-  using iterator         = pointer;
-  using const_iterator   = const_pointer;
-  using reverse_iterator = detail::ReverseIterator<Element>;
-  // using const_reverse_iterator = void;
+  using value_type             = Element;
+  using size_type              = size_t;
+  using difference_type        = ssize_t;
+  using reference              = value_type&;
+  using const_reference        = const value_type&;
+  using pointer                = value_type*;
+  using const_pointer          = const value_type*;
+  using iterator               = pointer;
+  using const_iterator         = const_pointer;
+  using reverse_iterator       = detail::ReverseIterator<Element>;
+  using const_reverse_iterator = detail::ConstReverseIterator<Element>;
 
   static constexpr auto constructor_and_destructor_are_cheap =
       detail::UninitializedArray<Element, CAPACITY>::constructor_and_destructor_are_cheap;
@@ -191,19 +191,21 @@ class StaticVector {
   [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator {
     return reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
   }
-  // [[nodiscard]] constexpr auto rbegin() const noexcept -> const_iterator { return m_data.data();
-  // }
-  // [[nodiscard]] constexpr auto crbegin() const noexcept -> const_iterator { return m_data.data();
-  // }
+  [[nodiscard]] constexpr auto rbegin() const noexcept -> const_reverse_iterator {
+    return const_reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+  }
+  [[nodiscard]] constexpr auto crbegin() const noexcept -> const_reverse_iterator {
+    return const_reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+  }
   [[nodiscard]] constexpr auto rend() noexcept -> reverse_iterator {
     return reverse_iterator{m_data.data() - 1};
   }
-  // [[nodiscard]] constexpr auto rend() const noexcept -> const_iterator {
-  //   return m_data.data() + m_size;
-  // }
-  // [[nodiscard]] constexpr auto crend() const noexcept -> const_iterator {
-  //   return m_data.data() + m_size;
-  // }
+  [[nodiscard]] constexpr auto rend() const noexcept -> const_reverse_iterator {
+    return const_reverse_iterator{m_data.data() - 1};
+  }
+  [[nodiscard]] constexpr auto crend() const noexcept -> const_reverse_iterator {
+    return const_reverse_iterator{m_data.data() - 1};
+  }
 
   // ------------------------------------------------------------------------------------------------
   [[nodiscard]] constexpr auto front() noexcept -> reference {
