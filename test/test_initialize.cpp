@@ -393,3 +393,79 @@ TEST(Initialize, MoveAssignment) {
   EXPECT_EQ(p3.use_count(), 1UZ);
   EXPECT_EQ(p4.use_count(), 1UZ);
 }
+
+// -------------------------------------------------------------------------------------------------
+TEST(Initialize, PushBack) {
+  {
+    StaticVector<int, 1024> vec;
+    vec.push_back(1);
+    {
+      int i = 2;
+      vec.push_back(i);
+    }
+    {
+      const int i = 3;
+      vec.push_back(i);
+    }
+    EXPECT_EQ(vec[0], 1);
+    EXPECT_EQ(vec[1], 2);
+    EXPECT_EQ(vec[2], 3);
+    EXPECT_EQ(vec.size(), 3);
+  }
+
+  {
+    StaticVector<std::string, 1024> vec;
+    vec.push_back(std::string{"1"});
+    {
+      std::string s = "2";
+      vec.push_back(s);
+    }
+    {
+      const std::string s = "3";
+      vec.push_back(s);
+    }
+    EXPECT_EQ(vec[0], std::string{"1"});
+    EXPECT_EQ(vec[1], std::string{"2"});
+    EXPECT_EQ(vec[2], std::string{"3"});
+    EXPECT_EQ(vec.size(), 3);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+TEST(Initialize, EmplaceBack) {
+  {
+    StaticVector<int, 1024> vec;
+    vec.emplace_back(1);
+    {
+      int i = 2;
+      vec.emplace_back(i);
+    }
+    {
+      const int i = 3;
+      vec.emplace_back(i);
+    }
+    EXPECT_EQ(vec[0], 1);
+    EXPECT_EQ(vec[1], 2);
+    EXPECT_EQ(vec[2], 3);
+    EXPECT_EQ(vec.size(), 3);
+  }
+
+  {
+    StaticVector<std::string, 1024> vec;
+    vec.emplace_back("1");
+    {
+      std::string s = "2";
+      vec.emplace_back(s);
+    }
+    {
+      const std::string s = "3";
+      vec.emplace_back(s);
+    }
+    vec.emplace_back(32, '#');
+    EXPECT_EQ(vec[0], std::string{"1"});
+    EXPECT_EQ(vec[1], std::string{"2"});
+    EXPECT_EQ(vec[2], std::string{"3"});
+    EXPECT_EQ(vec[3], std::string{"################################"});
+    EXPECT_EQ(vec.size(), 4);
+  }
+}

@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstddef>
 #include <initializer_list>
-#include <memory>
 #include <type_traits>
 
 #include "ReverseIterator.hpp"
@@ -13,7 +12,7 @@
 // -------------------------------------------------------------------------------------------------
 template <typename Element, size_t CAPACITY>
 class StaticVector {
-  detail::UninitializedArray<Element, CAPACITY> m_data;
+  detail::UninitializedArray<Element, CAPACITY> m_storage;
   size_t m_size = 0UZ;
 
  public:
@@ -40,7 +39,7 @@ class StaticVector {
   }
   constexpr StaticVector(std::initializer_list<Element> values) noexcept {
     for (auto& v : values) {
-      push_back(v);
+      push_back(std::move(v));
     }
   }
 
@@ -140,71 +139,64 @@ class StaticVector {
   requires(!std::is_trivially_destructible_v<Element>)
   {
     for (size_t i = 0; i < m_size; ++i) {
-      std::destroy_at(m_data.data() + i);
+      std::destroy_at(m_storage.data() + i);
     }
   }
 
   // -------------------------------------------------------------------------------------------------
-  constexpr void push_back(const Element& e) noexcept {
-    assert(m_size < CAPACITY && "Size may not exceed capacity.");
-    std::construct_at(m_data.data() + m_size, e);
-    m_size += 1;
-  }
-  constexpr void push_back(Element&& e) noexcept {
-    assert(m_size < CAPACITY && "Size may not exceed capacity.");
-    std::construct_at(m_data.data() + m_size, std::move(e));
-    m_size += 1;
-  }
-
-  constexpr auto pop_back() noexcept -> value_type {
-    assert(m_size > 0 && "Vector cannot be empty.");
-    m_size -= 1;
-    auto tmp = std::move(operator[](m_size));
-    std::destroy_at(m_data.data() + m_size);
-    return tmp;
-  }
-
   [[nodiscard]] constexpr auto operator[](size_t idx) noexcept -> reference {
-    return *(m_data.data() + idx);
+    return *(m_storage.data() + idx);
   }
   [[nodiscard]] constexpr auto operator[](size_t idx) const noexcept -> const_reference {
-    return *(m_data.data() + idx);
+    return *(m_storage.data() + idx);
   }
 
   // -----------------------------------------------------------------------------------------------
-  [[nodiscard]] constexpr auto size() const noexcept -> size_type { return m_size; }
-  [[nodiscard]] constexpr auto capacity() const noexcept -> size_type { return CAPACITY; }
+  [[nodiscard]] constexpr auto data() noexcept -> pointer { return m_storage.data(); }
+  [[nodiscard]] constexpr auto data() const noexcept -> const_pointer { return m_storage.data(); }
 
   // -----------------------------------------------------------------------------------------------
-  [[nodiscard]] constexpr auto begin() noexcept -> iterator { return m_data.data(); }
-  [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return m_data.data(); }
-  [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator { return m_data.data(); }
-  [[nodiscard]] constexpr auto end() noexcept -> iterator { return m_data.data() + m_size; }
+  [[nodiscard]] constexpr auto empty() const noexcept -> bool { return m_size == 0UZ; }
+  [[nodiscard]] constexpr auto size() const noexcept -> size_type { return m_size; }
+  [[nodiscard]] constexpr auto max_size() const noexcept -> size_type { return CAPACITY; }
+  constexpr void reserve([[maybe_unused]] size_type reserve_capacity) const noexcept {
+    assert(reserve_capacity <= CAPACITY && "Reserved capacity must be less than CAPACITY.");
+  }
+  [[nodiscard]] constexpr auto capacity() const noexcept -> size_type { return CAPACITY; }
+  constexpr void shrink_to_fit() const noexcept { /* NOOP */ }
+
+  // -----------------------------------------------------------------------------------------------
+  [[nodiscard]] constexpr auto begin() noexcept -> iterator { return m_storage.data(); }
+  [[nodiscard]] constexpr auto begin() const noexcept -> const_iterator { return m_storage.data(); }
+  [[nodiscard]] constexpr auto cbegin() const noexcept -> const_iterator {
+    return m_storage.data();
+  }
+  [[nodiscard]] constexpr auto end() noexcept -> iterator { return m_storage.data() + m_size; }
   [[nodiscard]] constexpr auto end() const noexcept -> const_iterator {
-    return m_data.data() + m_size;
+    return m_storage.data() + m_size;
   }
   [[nodiscard]] constexpr auto cend() const noexcept -> const_iterator {
-    return m_data.data() + m_size;
+    return m_storage.data() + m_size;
   }
 
   // -----------------------------------------------------------------------------------------------
   [[nodiscard]] constexpr auto rbegin() noexcept -> reverse_iterator {
-    return reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+    return reverse_iterator{m_storage.data() + static_cast<difference_type>(m_size) - 1};
   }
   [[nodiscard]] constexpr auto rbegin() const noexcept -> const_reverse_iterator {
-    return const_reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+    return const_reverse_iterator{m_storage.data() + static_cast<difference_type>(m_size) - 1};
   }
   [[nodiscard]] constexpr auto crbegin() const noexcept -> const_reverse_iterator {
-    return const_reverse_iterator{m_data.data() + static_cast<difference_type>(m_size) - 1};
+    return const_reverse_iterator{m_storage.data() + static_cast<difference_type>(m_size) - 1};
   }
   [[nodiscard]] constexpr auto rend() noexcept -> reverse_iterator {
-    return reverse_iterator{m_data.data() - 1};
+    return reverse_iterator{m_storage.data() - 1};
   }
   [[nodiscard]] constexpr auto rend() const noexcept -> const_reverse_iterator {
-    return const_reverse_iterator{m_data.data() - 1};
+    return const_reverse_iterator{m_storage.data() - 1};
   }
   [[nodiscard]] constexpr auto crend() const noexcept -> const_reverse_iterator {
-    return const_reverse_iterator{m_data.data() - 1};
+    return const_reverse_iterator{m_storage.data() - 1};
   }
 
   // ------------------------------------------------------------------------------------------------
@@ -227,11 +219,52 @@ class StaticVector {
 
   // -------------------------------------------------------------------------------------------------
   constexpr void clear() noexcept {
-    for (size_t i = 0; i < m_size; ++i) {
-      std::destroy_at(m_data.data() + i);
+    if constexpr (!std::is_trivially_destructible_v<Element>) {
+      for (size_t i = 0; i < m_size; ++i) {
+        std::destroy_at(m_storage.data() + i);
+      }
     }
     m_size = 0UZ;
   }
+
+  // -------------------------------------------------------------------------------------------------
+  constexpr void push_back(const Element& e) noexcept {
+    assert(m_size < CAPACITY && "Size may not exceed capacity.");
+    std::construct_at(m_storage.data() + m_size, e);
+    m_size += 1;
+  }
+  constexpr void push_back(Element&& e) noexcept {
+    assert(m_size < CAPACITY && "Size may not exceed capacity.");
+    std::construct_at(m_storage.data() + m_size, std::move(e));
+    m_size += 1;
+  }
+
+  // -------------------------------------------------------------------------------------------------
+  template <typename... Args>
+  constexpr void emplace_back(Args&&... args) noexcept {
+    assert(m_size < CAPACITY && "Size may not exceed capacity.");
+    std::construct_at(m_storage.data() + m_size, std::forward<Args>(args)...);
+    m_size += 1;
+  }
+
+  // -------------------------------------------------------------------------------------------------
+  constexpr auto pop_back() noexcept -> value_type {
+    assert(m_size > 0 && "Vector cannot be empty.");
+    m_size -= 1;
+    auto tmp = std::move(operator[](m_size));
+    std::destroy_at(m_storage.data() + m_size);
+    return tmp;
+  }
+
+  // -------------------------------------------------------------------------------------------------
+  // TODO:
+  // - insert
+  // - insert_range
+  // - emplace
+  // - erase
+  // - append_range
+  // - resize
+  // - swap
 };
 
 #endif  // STATIC_VECTOR_HPP_

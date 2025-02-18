@@ -18,6 +18,19 @@ static_assert(
     std::random_access_iterator<decltype(std::declval<StaticVector<int, 16>>().crbegin())>,
     "Const ReverseIterator must be random access iterator.");
 
+static_assert(
+    std::contiguous_iterator<decltype(std::declval<StaticVector<std::string, 16>>().begin())>,
+    "ForwardIterator must be contiguous iterator.");
+static_assert(
+    std::contiguous_iterator<decltype(std::declval<StaticVector<std::string, 16>>().cbegin())>,
+    "Const ForwardIterator must be contiguous iterator.");
+static_assert(
+    std::random_access_iterator<decltype(std::declval<StaticVector<std::string, 16>>().rbegin())>,
+    "ReverseIterator must be random access iterator.");
+static_assert(
+    std::random_access_iterator<decltype(std::declval<StaticVector<std::string, 16>>().crbegin())>,
+    "Const ReverseIterator must be random access iterator.");
+
 TEST(Iterator, ForwardIterator) {
   {
     StaticVector<int, 16UZ> vec{3, 4, 5, 1, 2, 3, 9, 8, 5, 1001};
@@ -91,4 +104,26 @@ TEST(Iterator, ModifyReverseIterator) {
     *rprev           = "-9"s;
     EXPECT_EQ(vec[6], "-9"s);
   }
+}
+
+TEST(Iterator, Distance) {
+  StaticVector<std::string, 32> vec(32);
+
+  EXPECT_EQ(std::distance(vec.begin(), vec.end()), 32);
+  EXPECT_EQ(std::distance(vec.cbegin(), vec.cend()), 32);
+
+  EXPECT_EQ(std::distance(vec.end(), vec.begin()), -32);
+  EXPECT_EQ(std::distance(vec.cend(), vec.cbegin()), -32);
+
+  EXPECT_EQ(std::distance(vec.rbegin(), vec.rend()), 32);
+  EXPECT_EQ(std::distance(vec.crbegin(), vec.crend()), 32);
+
+  EXPECT_EQ(std::distance(vec.rend(), vec.rbegin()), -32);
+  EXPECT_EQ(std::distance(vec.crend(), vec.crbegin()), -32);
+
+  EXPECT_EQ(vec.rend() - vec.rbegin(), 32);
+  EXPECT_EQ(vec.crend() - vec.crbegin(), 32);
+
+  EXPECT_EQ(vec.rbegin() - vec.rend(), -32);
+  EXPECT_EQ(vec.crbegin() - vec.crend(), -32);
 }
