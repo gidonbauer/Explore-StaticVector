@@ -12,13 +12,11 @@ static_assert(std::contiguous_iterator<decltype(std::declval<StaticVector<int, 1
               "ForwardIterator must be contiguous iterator.");
 static_assert(std::contiguous_iterator<decltype(std::declval<StaticVector<int, 16>>().cbegin())>,
               "Const ForwardIterator must be contiguous iterator.");
-// TODO:
-// static_assert(std::random_access_iterator<decltype(std::declval<StaticVector<int,
-// 16>>().rbegin())>,
-//               "ReverseIterator must be contiguous iterator.");
-// static_assert(
-//     std::random_access_iterator<decltype(std::declval<StaticVector<int, 16>>().crbegin())>,
-//     "Const ReverseIterator must be contiguous iterator.");
+static_assert(std::random_access_iterator<decltype(std::declval<StaticVector<int, 16>>().rbegin())>,
+              "ReverseIterator must be random access iterator.");
+static_assert(
+    std::random_access_iterator<decltype(std::declval<StaticVector<int, 16>>().crbegin())>,
+    "Const ReverseIterator must be random access iterator.");
 
 TEST(Iterator, ForwardIterator) {
   {
